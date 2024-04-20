@@ -1,0 +1,32 @@
+FROM golang:1.22.2-alpine3.19 AS base
+
+
+## ---------- BUILD
+FROM base AS build
+USER root
+WORKDIR /build
+COPY main.go go.mod go.sum /build/
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build --ldflags="-w -s" -buildvcs=false -o server .
+
+## ---------- MAIN:scratch
+FROM scratch
+WORKDIR /app
+COPY --chown=go:go --from=build /build/server /app/server
+CMD [ "./server" ]
+
+
+## ---------- MAIN:alpine
+# FROM base AS main
+# USER root
+# WORKDIR /app
+# RUN addgroup go && adduser -h /app -s /bin/ash -G go -D go
+# COPY --chown=go:go --from=build /build/server /app/server
+
+# CMD [ "./server" ]
+# EXPOSE 8080
+# HEALTHCHECK \
+#     --start-period=5s \
+#     --interval=5s \
+#     --timeout=5s \
+#     --retries=3 \
+#     CMD wget -qO- http://localhost:8080/status || exit 1
